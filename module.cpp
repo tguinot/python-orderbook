@@ -39,7 +39,11 @@ PYBIND11_MODULE(orderbook, m) {
         .def("set_quantity_at", &OrderbookWriter::py_set_quantity_at)
         .def("set_quantities_at", &OrderbookWriter::py_set_quantities_at)
         .def("set_entry", &OrderbookWriter::py_set_entry)
-        .def("set_entries", &OrderbookWriter::py_set_entries);
+        .def("set_entries", &OrderbookWriter::py_set_entries)
+        .def("set_ask", &OrderbookWriter::py_set_ask)
+        .def("set_bid", &OrderbookWriter::py_set_bid)
+        .def("set_bids", &OrderbookWriter::py_set_bids)
+        .def("set_asks", &OrderbookWriter::py_set_asks);
 }
 
 

@@ -22,7 +22,7 @@ class OrderbookReader {
   public:
     virtual void init_shm (std::string);
 
-    std::pair<number**, int> bids_up_to_volume (number);
+    std::pair<number **, int> bids_up_to_volume(number);
     std::pair<number**, int> asks_up_to_volume (number);
 
     py::list py_asks_up_to_volume(base_number n, base_number d);
@@ -58,5 +58,9 @@ class OrderbookWriter: public OrderbookReader {
     void py_set_quantities_at(order_side, py::list, py::list);
     void py_set_entry(order_side, py::object, py::object);    
     void py_set_entries(order_side, py::list, py::list);
+    void py_set_ask(const py::kwargs&); 
+    void py_set_bid(const py::kwargs&);
+    void py_set_bids(py::list, py::list);
+    void py_set_asks(py::list, py::list);
  };
 

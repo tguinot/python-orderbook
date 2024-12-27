@@ -1,3 +1,4 @@
+#include <tuple>
 #include "orderbook.hpp"
 #include "boost/date_time/posix_time/posix_time.hpp"
 
@@ -109,6 +110,80 @@ void OrderbookWriter::py_set_entries(order_side side, py::list new_qties, py::li
   {
     lock.unlock();
   }
+}
+
+template<typename F>
+void with_timed_lock(named_upgradable_mutex* mutex, F operation) {
+    scoped_lock<named_upgradable_mutex> lock(*mutex, defer_lock);
+    ptime locktime(microsec_clock::local_time());
+    locktime = locktime + milliseconds(75);
+
+    bool acquired = lock.timed_lock(locktime);
+
+    if (!acquired) {
+        std::cout << "Unable to acquire memory in insert_ask" << std::endl;
+        return;
+    }
+
+    operation();
+    lock.unlock();
+}
+
+number number_from_fraction(py::object fraction) {
+  int64_t new_number_n = fraction.attr("numerator").cast<int64_t>();
+  int64_t new_number_d = fraction.attr("denominator").cast<int64_t>();
+
+  return number(new_number_n, new_number_d);
+}
+
+void OrderbookWriter::py_set_ask(const py::kwargs& kwargs)
+{
+    if (!kwargs.contains("price") || !kwargs.contains("quantity")) {
+        throw py::value_error("Required keyword arguments: price and quantity");
+    }
+    
+    py::object new_price = kwargs["price"];
+    py::object new_qty = kwargs["quantity"];
+    
+    set_quantity_at(false, number_from_fraction(new_qty), number_from_fraction(new_price));
+}
+
+void OrderbookWriter::py_set_bid(const py::kwargs& kwargs)
+{
+    if (!kwargs.contains("price") || !kwargs.contains("quantity")) {
+        throw py::value_error("Required keyword arguments: price and quantity");
+    }
+    
+    py::object new_price = kwargs["price"];
+    py::object new_qty = kwargs["quantity"];
+    
+    set_quantity_at(true, number_from_fraction(new_qty), number_from_fraction(new_price));
+}
+
+void OrderbookWriter::py_set_asks(py::list new_qties, py::list new_prices)
+{
+    named_upgradable_mutex* mutex = asks->mutex;
+    
+    with_timed_lock(mutex, [&]() {
+        for (int i = 0; i < len(new_qties); ++i) {
+            py::object new_qty = new_qties[i];
+            py::object new_price = new_prices[i];
+            set_quantity_at_no_lock(false, number_from_fraction(new_qty), number_from_fraction(new_price));
+        }
+    });
+}
+
+void OrderbookWriter::py_set_bids(py::list new_qties, py::list new_prices)
+{
+    named_upgradable_mutex* mutex = bids->mutex;
+    
+    with_timed_lock(mutex, [&]() {
+        for (int i = 0; i < len(new_qties); ++i) {
+            py::object new_qty = new_qties[i];
+            py::object new_price = new_prices[i];
+            set_quantity_at_no_lock(true, number_from_fraction(new_qty), number_from_fraction(new_price));
+        }
+    });
 }
 
 py::list OrderbookReader::py_bids_up_to_volume(base_number n, base_number d) {

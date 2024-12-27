@@ -11,6 +11,8 @@ include_directories(
     /usr/local/include
 )
 
+set(Python_EXECUTABLE "/opt/homebrew/bin/python3.11")
+
 find_package(Python COMPONENTS Interpreter Development REQUIRED)
 find_package(pybind11 REQUIRED)
 
@@ -25,7 +27,6 @@ execute_process(
     OUTPUT_VARIABLE PYTHON_EXT_SUFFIX
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
-
 set_target_properties(example PROPERTIES OUTPUT_NAME "orderbook")
-set_target_properties(example PROPERTIES SUFFIX "${PYTHON_EXTENSION_SUFFIX}")
+set_target_properties(example PROPERTIES SUFFIX "${PYTHON_EXT_SUFFIX}")
 set_target_properties(example PROPERTIES PREFIX "")

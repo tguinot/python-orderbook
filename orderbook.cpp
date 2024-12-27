@@ -68,18 +68,11 @@ void OrderbookWriter::reset_content(){
     asks->reset_content();
 }
 
-void OrderbookWriter::set_quantity_at (order_side side, number new_quantity, number new_price) {
-  //ptime tm(microsec_clock::local_time());
-  
+void OrderbookWriter::set_quantity_at (order_side side, number new_quantity, number new_price) {  
   if (side == ASK)
     asks->insert_ask(new_price, new_quantity);
   else if (side == BID)
     bids->insert_bid(new_price, new_quantity);
-  
-  //ptime um(microsec_clock::local_time());
-
-  //std::cout << "Time is when starting to set quantity is " << tm.time_of_day().total_microseconds() << std::endl;
-  //std::cout << "Time is when finishing to set quantity is " << um.time_of_day().total_microseconds() << std::endl;
 }
 
 void OrderbookWriter::set_quantity_at_no_lock(order_side side, number new_quantity, number new_price)

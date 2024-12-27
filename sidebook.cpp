@@ -6,6 +6,7 @@
 #include "boost/date_time/posix_time/posix_time.hpp"
 #include <algorithm>
 
+
 using namespace boost::posix_time;
 
 number quantity(sidebook_content::iterator loc) {

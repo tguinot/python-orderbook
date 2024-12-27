@@ -10,6 +10,8 @@
 #include <utility>
 #include <vector>
 #include <pybind11/pybind11.h>
+#include <pybind11/embed.h> // Everything needed for embedding
+#include <pybind11/stl.h>
 
 #define SIDEBOOK_SIZE       200
 #define ZEROVAL             number(0, 1)
@@ -47,6 +49,7 @@ class SideBook {
     mapped_region *region;
     managed_shared_memory *segment;
     sidebook_content *data;
+    py::object np_data;
     void_allocator *allocator;
     number default_value;
     shm_mode book_mode;
@@ -75,7 +78,7 @@ class SideBook {
         void insert_bid(number, number);
         void insert_bid_no_lock(number, number);
         void clean_first_limit();
-        
+
         void reset_content();
 
         number get_default_value() {
