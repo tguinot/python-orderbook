@@ -53,16 +53,16 @@ class SideBook {
     void_allocator *allocator;
     number default_value;
     shm_mode book_mode;
+    std::string segment_path;
+    std::string mutex_path;
 
     void fill_with(number);
-
     void setup_segment (std::string, shm_mode);
     void insert_at_place(sidebook_content*, orderbook_entry_type, sidebook_content::iterator);
     void _delete_first_entry();
 
 	public:
         SideBook(std::string, shm_mode, number);
-
         named_upgradable_mutex *mutex;
         long *update_number;
 

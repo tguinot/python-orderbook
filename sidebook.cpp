@@ -34,24 +34,33 @@ bool compare_b(orderbook_entry_type a, orderbook_entry_type b){
 }
 
 void SideBook::setup_segment(std::string path, shm_mode mode){
-    if (mode == read_write_shm)
-        segment = new managed_shared_memory(open_or_create, path.c_str(), 90000);
-    else if (mode == read_shm)
-        segment = new managed_shared_memory(open_only, path.c_str());
+    try {
+        if (mode == read_write_shm) {
+            std::cout << "Creating/opening shared memory at path: " << path << std::endl;
+            boost::interprocess::shared_memory_object::remove(path.c_str());
+            segment = new managed_shared_memory(open_or_create, path.c_str(), 90000);
+        }
+        else if (mode == read_shm) {
+            std::cout << "Opening shared memory at path: " << path << std::endl;
+            segment = new managed_shared_memory(open_only, path.c_str());
+        }
+        std::cout << "Successfully setup shared memory segment at: " << path << std::endl;
+    } catch (const boost::interprocess::interprocess_exception& ex) {
+        std::cerr << "Failed to setup shared memory segment: " << ex.what() << std::endl;
+        std::cerr << "Error code: " << ex.get_error_code() << std::endl;
+        std::cerr << "Path attempted: " << path << std::endl;
+        throw;
+    }
 }
-
-SideBook::SideBook(std::string path, shm_mode mode, number fill_value){
-    std::string mutex_path = path + "_mutex";
-    // std::cout << "Creating upgradable mutex " << mutex_path << std::endl;
+SideBook::SideBook(std::string path, shm_mode mode, number fill_value): segment(nullptr), mutex(nullptr) {
+    segment_path = path;
+    mutex_path = path + "_mutex";
     mutex = new named_upgradable_mutex(open_or_create, mutex_path.c_str());
-    // std::cout << "Setting up SHM segment " << path << std::endl;
     setup_segment(path, mode);
-    // std::cout << "Constructing SHM objects " << path << std::endl;
     data = segment->find_or_construct< sidebook_content > ("unique")();
     update_number = segment->find_or_construct< long > ("nonce")();
     default_value = fill_value;
     book_mode = mode;
-    // std::cout << "Resetting SHM object " << path << std::endl;
     reset_content();
 }
 
@@ -90,7 +99,6 @@ number** SideBook::extract_to_limit(int limit){
         result[i] = new number[2];
         result[i][0] = price(it);
         result[i][1] = quantity(it);
-        //i++;
     }
     return result;
 }
