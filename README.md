@@ -19,10 +19,10 @@ This is a fast orderbook implementation that:
 
 ## Requirements
 
-* C++11
-* CMake >= 3.12
+* C++17
+* CMake >= 3.16
 * Python 3.x with development headers
-* Boost (for interprocess)
+* Boost (for interprocess, auto-fetched by CMake)
 * pybind11
 * Eigen 3.4.0 (auto-fetched by CMake)
 
