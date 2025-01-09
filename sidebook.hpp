@@ -4,6 +4,7 @@
 #include <boost/interprocess/sync/named_upgradable_mutex.hpp>
 #include <boost/interprocess/sync/sharable_lock.hpp>
 #include <array>
+#include "skiplist.hpp"
 #include <boost/rational.hpp>
 #include <pybind11/eigen.h>
 #include <boost/config.hpp>
@@ -13,7 +14,7 @@
 #include <pybind11/embed.h> // Everything needed for embedding
 #include <pybind11/stl.h>
 
-#define SIDEBOOK_SIZE       200
+#define SIDEBOOK_SIZE       2000
 #define ZEROVAL             number(0, 1)
 #define MAXVAL              number(2147483645, 1)
 
@@ -45,6 +46,16 @@ number quantity(sidebook_content::reverse_iterator loc);
 
 number price(sidebook_content::reverse_iterator loc);
 
+bool compare_s(orderbook_entry_type a, orderbook_entry_type b);
+
+bool compare_b(orderbook_entry_type a, orderbook_entry_type b);
+
+
+void set_quantity(sidebook_content::iterator, number);
+void set_price(sidebook_content::iterator, number);
+void set_quantity(sidebook_content::reverse_iterator, number);
+void set_price(sidebook_content::reverse_iterator, number);
+
 class SideBook {
     mapped_region *region;
     managed_shared_memory *segment;
@@ -56,13 +67,12 @@ class SideBook {
     std::string segment_path;
     std::string mutex_path;
 
-    void fill_with(number);
+    //void fill_with(number);
     void setup_segment (std::string, shm_mode);
-    void insert_at_place(sidebook_content*, orderbook_entry_type, sidebook_content::iterator);
-    void _delete_first_entry();
-
+    
 	public:
         SideBook(std::string, shm_mode, number);
+        void insert_at_place(orderbook_entry_type, sidebook_content::iterator);
         named_upgradable_mutex *mutex;
         long *update_number;
 
@@ -73,13 +83,7 @@ class SideBook {
         py::list py_snapshot_to_limit(int);
         py::list py_extract_to_limit(int);
 
-        void insert_ask(number, number);
-        void insert_ask_no_lock(number, number);
-        void insert_bid(number, number);
-        void insert_bid_no_lock(number, number);
         void clean_first_limit();
-
-        void reset_content();
 
         number get_default_value() {
           return default_value;

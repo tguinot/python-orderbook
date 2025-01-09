@@ -1,9 +1,7 @@
 #include "sidebook.hpp"
-#include <boost/interprocess/sync/lock_options.hpp>
-#include "boost/date_time/posix_time/posix_time.hpp"
+#include "with_timed_lock.hpp"
 
 using namespace boost::interprocess;
-using namespace boost::posix_time;
 
 py::object fractions_module = py::module_::import("fractions");
 py::object fraction_class = fractions_module.attr("Fraction");
@@ -17,7 +15,6 @@ py::list SideBook::py_extract_to_limit(int limit){
   for (sidebook_ascender it=data->begin(); it!=data->end(); it++){
     if (i >= limit || price(it) == default_value)
       break;
-    
     py::object frac_qty = fraction_class(quantity(it).numerator(), quantity(it).denominator());
     py::object frac_price = fraction_class(price(it).numerator(), price(it).denominator());
 
@@ -29,18 +26,11 @@ py::list SideBook::py_extract_to_limit(int limit){
 }
 
 py::list SideBook::py_snapshot_to_limit(int limit){
-  scoped_lock<named_upgradable_mutex> lock(*mutex, defer_lock);
-  ptime locktime(microsec_clock::local_time());
-  locktime = locktime + milliseconds(75);
-  
-  bool acquired = lock.timed_lock(locktime);
-  if (!acquired) {
-    std::cout << "Unable to acquire memory in py_snapshot_to_limit" << std::endl;
-  } else {
-    lock.unlock();
-  }
-  
-  return py_extract_to_limit(limit);
+  pybind11::list result;
+  with_timed_lock(mutex, [&]() {
+    result = py_extract_to_limit(limit);
+  });
+  return result;
 }
 
 

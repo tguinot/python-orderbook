@@ -1,18 +1,14 @@
 #include "orderbook.hpp"
 #include <unistd.h>
 #include <iostream>
-#include <boost/interprocess/sync/lock_options.hpp>
-#include "boost/date_time/posix_time/posix_time.hpp"
 #include <iomanip>
 
 using namespace boost::interprocess;
-using namespace boost::posix_time;
 
 OrderbookReader::OrderbookReader(const std::string& path) : OrderbookBase(path) {
   bids = new SideBook(path_ + BID_PATH_SUFFIX, read_shm, ZEROVAL);
   asks = new SideBook(path_ + ASK_PATH_SUFFIX, read_shm, MAXVAL);
 }
-
 
 OrderbookBase::~OrderbookBase() {
   if (bids) {
@@ -30,18 +26,17 @@ OrderbookBase::~OrderbookBase() {
 OrderbookWriter::OrderbookWriter(const std::string& path) : OrderbookBase(path) {
   bids = new SideBook(path_ + BID_PATH_SUFFIX, read_write_shm, ZEROVAL);
   asks = new SideBook(path_ + ASK_PATH_SUFFIX, read_write_shm, MAXVAL);
+  reset_content();
 }
 
 
 std::pair<number**, int> OrderbookBase::_side_up_to_volume_(SideBook *sb, number target_volume) {
   number** result = new number*[100];
   int i = 0;
-  scoped_lock<named_upgradable_mutex> lock(*(sb->mutex), defer_lock);
-  ptime locktime(microsec_clock::local_time());
-  locktime = locktime + milliseconds(75);
-  
-  bool acquired = lock.timed_lock(locktime);
-  for (sidebook_ascender it=sb->begin(); it!=sb->end(); ++it){
+  sidebook_ascender it;
+
+  with_timed_lock(sb->mutex, [&]() {
+    for (it=sb->begin(); it!=sb->end(); ++it){
       if (price(it) == ZEROVAL)
         break;
       target_volume -= quantity(it);
@@ -55,12 +50,8 @@ std::pair<number**, int> OrderbookBase::_side_up_to_volume_(SideBook *sb, number
       result[i][0] = price(it);
       result[i][1] = quantity(it);
       i++;
-  }
-  if (!acquired) {
-    std::cout << "Unable to acquire memory in _side_up_to_volume_" << std::endl;
-  }else {
-    lock.unlock();
-  }
+    }
+  });
 
   return std::pair<number**, int>(result, i);
 }
@@ -84,21 +75,85 @@ void OrderbookBase::display_side (order_side side) {
 }
 
 void OrderbookWriter::reset_content(){
-    bids->reset_content();
-    asks->reset_content();
+    fill_side_with(bids, ZEROVAL);
+    fill_side_with(asks, MAXVAL);
 }
 
 void OrderbookWriter::set_quantity_at (order_side side, number new_quantity, number new_price) {  
-  if (side == ASK)
-    asks->insert_ask(new_price, new_quantity);
-  else if (side == BID)
-    bids->insert_bid(new_price, new_quantity);
+  if (side == ASK){
+    insert_ask(new_price, new_quantity);
+  }
+  else if (side == BID){
+    insert_bid(new_price, new_quantity);
+  }
 }
 
 void OrderbookWriter::set_quantity_at_no_lock(order_side side, number new_quantity, number new_price)
 {
   if (side == ASK)
-    asks->insert_ask_no_lock(new_price, new_quantity);
+    insert_ask_no_lock(new_price, new_quantity);
   else if (side == BID)
-    bids->insert_bid_no_lock(new_price, new_quantity);
+    insert_bid_no_lock(new_price, new_quantity);
+}
+
+void OrderbookWriter::fill_side_with(SideBook *sb, number fillNumber){
+    sidebook_ascender it;
+  
+    with_timed_lock(sb->mutex, [&]() {
+      for (it= sb->begin(); it!=sb->end(); it++){
+        set_price(it, fillNumber);
+        set_quantity(it, fillNumber);
+      }
+      (*(sb->update_number))++;
+    });
+}
+
+void OrderbookWriter::fill_asks_with(number fillNumber){
+    fill_side_with(asks, fillNumber);
+}
+
+void OrderbookWriter::fill_bids_with(number fillNumber){
+    fill_side_with(bids, fillNumber);
+}
+
+void OrderbookWriter::insert_ask(number new_price, number new_quantity) {
+    orderbook_entry_type to_insert = {new_price, new_quantity};
+
+    sidebook_content::iterator loc;
+    with_timed_lock(asks->mutex, [&]() {
+      loc = std::lower_bound<sidebook_content::iterator, orderbook_entry_type>(asks->begin(), asks->end(), to_insert, compare_s);
+      asks->insert_at_place(to_insert, loc);
+    });
+}
+
+void OrderbookWriter::insert_ask_no_lock(number new_price, number new_quantity) {
+    orderbook_entry_type to_insert = {new_price, new_quantity};
+
+    sidebook_content::iterator loc = std::lower_bound<sidebook_content::iterator, orderbook_entry_type>(asks->begin(), asks->end(), to_insert, compare_s);
+    asks->insert_at_place(to_insert, loc);
+}
+
+void OrderbookWriter::insert_bid(number new_price, number new_quantity) {
+    orderbook_entry_type to_insert = {new_price, new_quantity};
+
+    sidebook_content::iterator loc;
+    with_timed_lock(bids->mutex, [&]() {
+      loc = std::lower_bound<sidebook_content::iterator, orderbook_entry_type>(bids->begin(), bids->end(), to_insert, compare_b);
+      bids->insert_at_place(to_insert, loc);
+    });
+}
+
+void OrderbookWriter::insert_bid_no_lock(number new_price, number new_quantity) {
+    orderbook_entry_type to_insert = {new_price, new_quantity};
+
+    sidebook_content::iterator loc = std::lower_bound<sidebook_content::iterator, orderbook_entry_type>(bids->begin(), asks->end(), to_insert, compare_b);
+    bids->insert_at_place(to_insert, loc);
+}
+
+number** OrderbookWriter::snapshot_to_limit(SideBook *sb, int limit){
+    number** result;
+    with_timed_lock(sb->mutex, [&]() {
+      result = sb->extract_to_limit(limit);
+    });
+    return result;
 }

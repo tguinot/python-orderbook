@@ -1,7 +1,8 @@
 #include <iostream>
 #include <string>
-#include "sidebook.hpp"
 #include <tuple>
+#include "sidebook.hpp"
+#include "with_timed_lock.hpp"
 
 #define BID_PATH_SUFFIX "_bids"
 #define ASK_PATH_SUFFIX "_asks"
@@ -10,7 +11,6 @@
 #define ASK false
 
 typedef bool order_side;
-
 
 class OrderbookBase {
   protected:
@@ -62,13 +62,17 @@ class OrderbookWriter: public OrderbookBase {
     void clean_top_bid();
     void set_quantity_at (order_side, number, number);
     void set_quantity_at_no_lock (order_side, number, number);
-    //void py_set_quantity_at (order_side, base_number, base_number, base_number, base_number);
-    //void py_set_quantities_at(order_side, py::list, py::list);
-    //void py_set_entry(order_side, py::object, py::object);    
-    //void py_set_entries(order_side, py::list, py::list);
+    void fill_side_with(SideBook *sb, number fillNumber);
+    void fill_asks_with(number fillNumber);
+    void fill_bids_with(number fillNumber);
     void py_set_ask(const py::kwargs&); 
     void py_set_bid(const py::kwargs&);
     void py_set_bids(py::list, py::list);
     void py_set_asks(py::list, py::list);
+    void insert_ask(number, number);
+    void insert_ask_no_lock(number, number);
+    void insert_bid(number, number);
+    void insert_bid_no_lock(number, number);
+    number** snapshot_to_limit(SideBook*, int);
  };
 
