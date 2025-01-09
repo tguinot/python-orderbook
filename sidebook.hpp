@@ -4,7 +4,6 @@
 #include <boost/interprocess/sync/named_upgradable_mutex.hpp>
 #include <boost/interprocess/sync/sharable_lock.hpp>
 #include <array>
-#include "skiplist.hpp"
 #include <boost/rational.hpp>
 #include <pybind11/eigen.h>
 #include <boost/config.hpp>
